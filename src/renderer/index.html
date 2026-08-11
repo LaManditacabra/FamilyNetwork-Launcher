@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Launcher</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="titlebar">
+      <img src="assets/logo.png" class="title-logo" alt="Family Network" />
+      <span class="title">Family Launcher</span>
+      <div class="win-controls">
+        <button id="btn-min" class="wc" title="Minimizar">—</button>
+        <button id="btn-max" class="wc" title="Maximizar">▢</button>
+        <button id="btn-close" class="wc close" title="Cerrar">✕</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- Panel principal: banner + jugar -->
+      <section class="play-col">
+        <div class="hero" id="hero">
+          <div class="hero-map" aria-hidden="true"></div>
+          <div class="hero-inner">
+            <img src="assets/logo.png" class="hero-logo" alt="Family Network" />
+            <p class="hero-sub">Family Network · Minecraft · Java &amp; Bedrock</p>
+            <div class="status-row">
+              <span class="online-pill">
+                <span class="status-dot" id="hero-dot"></span>
+                <span id="hero-status"><strong>Java</strong> · Consultando…</span>
+              </span>
+              <span class="online-pill">
+                <span class="status-dot" id="hero-dot-bedrock"></span>
+                <span id="hero-status-bedrock"><strong>Bedrock</strong> · Consultando…</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="update-banner" id="update-banner" hidden>
+          <div class="update-info">
+            <strong id="update-title">Nueva versión disponible</strong>
+            <span id="update-sub"></span>
+          </div>
+          <div class="update-actions">
+            <button id="btn-update-now" class="btn-primary-gold">Actualizar ahora</button>
+            <button id="btn-update-later" class="btn-ghost">Más tarde</button>
+          </div>
+          <div class="update-progress" id="update-progress" hidden>
+            <div class="bar" id="update-progress-bar"></div>
+            <span id="update-progress-text"></span>
+          </div>
+        </div>
+
+        <div class="play-box">
+          <div class="play-controls">
+            <button id="btn-latest" class="btn-ghost">Última versión</button>
+            <select id="version-select"><option>Cargando…</option></select>
+            <button id="btn-remove-version" class="btn-ghost btn-versions" title="Administrar versiones instaladas (desinstalar las que no uses)">
+              <span>Versiones</span>
+              <span class="btn-versions-count" id="installed-count">0</span>
+            </button>
+            <button id="btn-mods" class="btn-ghost" title="Instalar Fabric y agregar mods">Mods</button>
+            <button id="btn-play" class="btn-primary-gold">
+              <strong>JUGAR</strong>
+              <small id="btn-play-sub">Seleccioná una versión</small>
+            </button>
+          </div>
+          <div class="progress" id="progress" hidden>
+            <div class="bar" id="progress-bar"></div>
+            <span id="progress-text"></span>
+          </div>
+        </div>
+
+        <section class="panel skins-panel">
+          <div class="skins-head">
+            <h2>Elegí tu skin</h2>
+            <div class="skins-head-actions">
+              <button id="btn-open-editor" class="btn-ghost" title="Creá tu propia skin">Creador</button>
+              <button id="btn-random-skin" class="btn-ghost btn-random" title="Elegí una al azar">Sorpresa</button>
+            </div>
+          </div>
+          <div class="skin-grid" id="skin-grid">
+            <div class="skin-tile loading">
+              <canvas width="64" height="128" class="skin-thumb" id="thumb-default"></canvas>
+              <span>Cargando…</span>
+            </div>
+          </div>
+          <div class="skin-actions">
+            <button id="btn-use-skin" class="btn-use-skin" disabled>Usar en el perfil</button>
+            <span id="skin-use-status" class="skin-use-status"></span>
+          </div>
+        </section>
+      </section>
+
+      <!-- Sidebar: perfiles -->
+      <aside class="sidebar">
+        <section class="panel skin-preview">
+          <h2>Vista previa</h2>
+          <div class="skin-selected">
+            <canvas id="skin-big"></canvas>
+            <div class="skin-selected-info">
+              <span class="skin-selected-name" id="skin-big-name">Por defecto</span>
+              <span class="skin-selected-sub" id="skin-big-sub">La skin que te pone el servidor</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel profiles">
+          <h2>Perfiles</h2>
+          <label for="profile-select">Perfil guardado:</label>
+          <select id="profile-select"><option value="">(nuevo perfil…)</option></select>
+
+          <label for="profile-name">Nombre:</label>
+          <input id="profile-name" type="text" placeholder="Mi perfil" />
+
+          <label for="profile-skin">Skin del perfil:</label>
+          <div class="profile-skin-chip">
+            <canvas id="skin-field-thumb"></canvas>
+            <div class="profile-skin-body">
+              <span class="profile-skin-name" id="skin-field-name">Por defecto</span>
+              <small>Se elige en la galer&iacute;a</small>
+            </div>
+          </div>
+          <select id="profile-skin" hidden><option value="">Por defecto</option></select>
+
+          <div class="mem">
+            <div>
+              <label for="profile-mem-min">RAM mín (MB):</label>
+              <input id="profile-mem-min" type="number" value="1024" min="512" step="256" />
+            </div>
+            <div>
+              <label for="profile-mem-max">RAM máx (MB):</label>
+              <input id="profile-mem-max" type="number" value="4096" min="1024" step="256" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="btn-new-profile">Nuevo</button>
+            <button id="btn-save-profile">Guardar</button>
+            <button id="btn-del-profile">Eliminar</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <!-- Confirmación de desinstalación -->
+    <div class="editor-modal" id="confirm-version-modal" hidden>
+      <div class="editor-box confirm-box">
+        <div class="editor-head">
+          <h2>Desinstalar versión</h2>
+          <button id="btn-confirm-close" class="wc close" title="Cerrar">✕</button>
+        </div>
+        <div class="editor-body confirm-body">
+          <div class="confirm-detail" id="confirm-detail"></div>
+          <p class="confirm-text" id="confirm-text"></p>
+          <div class="confirm-actions">
+            <button id="btn-confirm-cancel" class="btn-ghost">Cancelar</button>
+            <button id="btn-confirm-yes" class="btn-danger">Desinstalar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gestión de versiones instaladas -->
+    <div class="editor-modal" id="versions-modal" hidden>
+      <div class="editor-box versions-box">
+        <div class="editor-head">
+          <h2>Versiones instaladas</h2>
+          <button id="btn-versions-close" class="wc close" title="Cerrar">✕</button>
+        </div>
+        <div class="editor-body versions-body">
+          <p class="versions-hint" id="versions-hint"></p>
+          <div class="versions-list" id="versions-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Creador de skins (editor pixel 64x64) -->
+    <div class="editor-modal" id="skin-editor" hidden>
+      <div class="editor-box">
+        <div class="editor-head">
+          <h2>Creador de skins</h2>
+          <button id="btn-editor-close" class="wc close" title="Cerrar">✕</button>
+        </div>
+        <div class="editor-body">
+          <div class="editor-left">
+            <div class="editor-views" id="editor-views">
+              <button data-view="front" class="eview active" title="Ver el frente">Frente</button>
+              <button data-view="sideL" class="eview" title="Lado izquierdo del jugador">Lado izq</button>
+              <button data-view="sideR" class="eview" title="Lado derecho del jugador">Lado der</button>
+              <button data-view="back" class="eview" title="Ver la espalda">Atrás</button>
+            </div>
+            <div class="editor-canvas-wrap">
+              <canvas id="editor-canvas" width="320" height="640"></canvas>
+            </div>
+            <div class="editor-tools">
+              <div class="editor-toolbar">
+                <button id="tool-brush" class="etool active" title="Pincel">Pincel</button>
+                <button id="tool-eraser" class="etool" title="Borrador">Borrar</button>
+                <button id="tool-fill" class="etool" title="Relleno">Relleno</button>
+              </div>
+              <div class="editor-actions">
+                <button id="btn-undo" title="Deshacer">Deshacer</button>
+                <button id="btn-redo" title="Rehacer">Rehacer</button>
+                <button id="btn-load-skin" title="Cargar la skin elegida en la galería">Cargar</button>
+                <button id="btn-clear" title="Dejar todo transparente">Limpiar</button>
+              </div>
+              <div class="editor-palette" id="editor-palette"></div>
+              <label for="editor-color">Color</label>
+              <input id="editor-color" type="color" value="#f2c7a8" />
+            </div>
+          </div>
+          <div class="editor-right">
+            <h3>Vista previa</h3>
+            <canvas id="editor-preview"></canvas>
+            <label for="editor-name">Nombre del jugador</label>
+            <input id="editor-name" type="text" maxlength="16" placeholder="Cómo jugás en el server" />
+            <div class="editor-right-actions">
+              <button id="btn-editor-upload" class="btn-primary-gold">Subir y usar</button>
+            </div>
+            <span id="editor-status" class="skin-use-status"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="statusbar">
+      <span id="status">Listo</span>
+    </footer>
+  </div>
+
+  <script src="js/skins.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

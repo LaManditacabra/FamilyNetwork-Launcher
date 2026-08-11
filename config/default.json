@@ -1,0 +1,18 @@
+{
+  "gameDirectory": "%APPDATA%/family-launcher/.minecraft",
+  "memory": { "min": 1024, "max": 4096 },
+  "locale": "es",
+  "showSnapshots": false,
+"skinApi": {
+    "url": "https://desktop-6acpbav.tailcf1d70.ts.net/mc/skin",
+    "token": "9cfa83c93c03d4bb2d0e28e221f383aa"
+  },
+  "yggdrasil": {
+    "enabled": true,
+    "api": "https://desktop-6acpbav.tailcf1d70.ts.net/mc"
+  },
+  "updater": {
+    "repo": "LaManditacabra/FamilyNetwork-Launcher",
+    "channel": "latest"
+  }
+}

@@ -1,0 +1,13 @@
+# Dependencias
+node_modules/
+
+# Salidas de build (instaladores generados por electron-builder)
+dist/
+
+# Datos locales del launcher (cuentas, perfiles, versiones descargadas)
+data/
+*.log
+
+# Sistema de cada SO
+.DS_Store
+Thumbs.db

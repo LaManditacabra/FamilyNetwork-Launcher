@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mods · Family Launcher</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="titlebar">
+      <img src="assets/logo.png" class="title-logo" alt="Family Network" />
+      <span class="title">Family Launcher · Mods</span>
+      <div class="win-controls">
+        <button id="btn-min" class="wc" title="Minimizar">—</button>
+        <button id="btn-max" class="wc" title="Maximizar">▢</button>
+        <button id="btn-close" class="wc close" title="Cerrar">✕</button>
+      </div>
+    </header>
+
+    <main class="content mods-page">
+      <!-- Catálogo único de mods: versión + filtro de loader + búsqueda Modrinth -->
+      <section class="panel search-panel mods-section">
+        <h2>Buscar mods en Modrinth</h2>
+        <div class="mods-search">
+          <select id="mods-version" class="mods-tool" title="Versión del juego"><option>Cargando…</option></select>
+          <select id="mods-loader-filter" class="mods-tool" title="Filtrar por loader">
+            <option value="todos">Todos los loaders</option>
+            <option value="fabric">Solo Fabric</option>
+            <option value="forge">Solo Forge</option>
+            <option value="neoforge">Solo NeoForge</option>
+          </select>
+          <input id="mods-search-input" type="text" placeholder="Buscá mods (p. ej. sodium, lithium…)…" />
+          <button id="btn-mods-search" class="btn-ghost">Buscar</button>
+        </div>
+        <p class="mods-hint">Lista única: cada tarjeta indica con qué loader funciona y, al instalar, el loader que haga falta se instala solo.</p>
+        <div class="mods-list" id="mods-list"></div>
+
+        <div class="mods-installed-wrap">
+          <h3>Instalados</h3>
+          <ul class="mods-installed" id="mods-installed"></ul>
+        </div>
+      </section>
+
+      <span id="mods-status" class="skin-use-status mods-page-status"></span>
+    </main>
+
+    <footer class="statusbar">
+      <span id="status">Listo</span>
+    </footer>
+  </div>
+
+  <script src="js/mods.js"></script>
+</body>
+</html>
