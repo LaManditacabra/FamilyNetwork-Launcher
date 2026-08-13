@@ -1,14 +1,14 @@
 // src/core/config/profiles.js
 // CRUD de perfiles de juego (cada uno guarda versión, nombre, memoria y skin).
 
-const { PROFILES_FILE, loadJson, saveJson } = require('./store');
+const { profilesFile, loadJson, saveJson } = require('./store');
 
 function getProfiles() {
-  return loadJson(PROFILES_FILE, []);
+  return loadJson(profilesFile(), []);
 }
 
 function saveProfiles(profiles) {
-  saveJson(PROFILES_FILE, profiles);
+  saveJson(profilesFile(), profiles);
 }
 
 // Crea un perfil. versionId y skin son opcionales.

@@ -4,6 +4,7 @@
 const { app, ipcMain } = require('electron');
 const { createMainWindow } = require('./window');
 const { registerIpcHandlers } = require('./ipc/handlers');
+const { setDataRoot } = require('../utils');
 
 // Evita múltiples instancias de la app.
 if (!app.requestSingleInstanceLock()) {
@@ -13,6 +14,12 @@ if (!app.requestSingleInstanceLock()) {
 // Registra los handlers IPC ANTES de crear la ventana para evitar
 // condiciones de carrera (la UI podría invocar antes de tener handlers).
 function boot() {
+  // Empaquetado: la carpeta de datos va a userData (config, perfiles, cuenta),
+  // porque escribir dentro del app.asar de solo lectura tiraría ENOTDIR.
+  if (app.isPackaged) {
+    setDataRoot(app.getPath('userData'));
+    console.log('[main] datos en', require('../core/config/store').dataDir());
+  }
   registerIpcHandlers(ipcMain);
   createMainWindow();
 

@@ -12,6 +12,18 @@ function ensureDir(dir) {
   }
 }
 
+// Carpeta de datos del launcher (config.json, perfiles, cuenta).
+// En dev/tests es data/ del proyecto; en la app empaquetada el proceso
+// principal la apunta a app.getPath('userData') porque el app.asar es de solo
+// lectura (escribir adentro tira ENOTDIR: not a directory).
+let dataRoot = path.resolve(__dirname, '..', '..', 'data');
+function setDataRoot(dir) {
+  if (dir) dataRoot = path.resolve(dir);
+}
+function getDataRoot() {
+  return dataRoot;
+}
+
 function resolvePath(p) {
   // Expande variables como %APPDATA% en Windows y normaliza separadores.
   let resolved = p;
@@ -31,4 +43,4 @@ function offlineUuid(name) {
   return `${b.slice(0, 8)}-${b.slice(8, 12)}-${b.slice(12, 16)}-${b.slice(16, 20)}-${b.slice(20)}`;
 }
 
-module.exports = { ensureDir, resolvePath, offlineUuid };
+module.exports = { ensureDir, resolvePath, offlineUuid, setDataRoot, getDataRoot };

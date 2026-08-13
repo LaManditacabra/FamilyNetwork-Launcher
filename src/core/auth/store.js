@@ -1,32 +1,31 @@
 // src/core/auth/store.js
-// Guarda y carga la cuenta autenticada en data/accounts.json.
-// (data/ está en .gitignore: no se sube al repo.)
+// Guarda y carga la cuenta autenticada en accounts.json (carpeta de datos;
+// data/ en dev, app.getPath('userData') empaquetado — ver utils setDataRoot).
 
 const fs = require('fs');
 const path = require('path');
-const { ensureDir } = require('../../utils');
+const { ensureDir, getDataRoot } = require('../../utils');
 
-const ACCOUNTS_DIR = path.resolve(__dirname, '..', '..', '..', 'data');
-const ACCOUNTS_FILE = path.join(ACCOUNTS_DIR, 'accounts.json');
+function accountsFile() { return path.join(getDataRoot(), 'accounts.json'); }
 
 function saveAccount(account) {
-  ensureDir(ACCOUNTS_DIR);
+  ensureDir(getDataRoot());
   // Solo guardamos una cuenta por ahora (la última en usar).
-  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(account, null, 2), 'utf-8');
+  fs.writeFileSync(accountsFile(), JSON.stringify(account, null, 2), 'utf-8');
   return account;
 }
 
 function loadAccount() {
-  if (!fs.existsSync(ACCOUNTS_FILE)) return null;
+  if (!fs.existsSync(accountsFile())) return null;
   try {
-    return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf-8'));
+    return JSON.parse(fs.readFileSync(accountsFile(), 'utf-8'));
   } catch {
     return null;
   }
 }
 
 function clearAccount() {
-  if (fs.existsSync(ACCOUNTS_FILE)) fs.unlinkSync(ACCOUNTS_FILE);
+  if (fs.existsSync(accountsFile())) fs.unlinkSync(accountsFile());
 }
 
-module.exports = { saveAccount, loadAccount, clearAccount, ACCOUNTS_FILE };
+module.exports = { saveAccount, loadAccount, clearAccount, accountsFile };

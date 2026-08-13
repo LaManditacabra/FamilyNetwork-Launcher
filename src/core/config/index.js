@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { DEFAULT_CONFIG } = require('./defaults');
-const { CONFIG_FILE, loadJson, saveJson } = require('./store');
+const { configFile, loadJson, saveJson } = require('./store');
 const profiles = require('./profiles');
 const { resolvePath } = require('../../utils');
 
@@ -33,15 +33,15 @@ function loadConfig() {
   const def = fs.existsSync(DEFAULT_FILE)
     ? JSON.parse(fs.readFileSync(DEFAULT_FILE, 'utf-8'))
     : DEFAULT_CONFIG;
-  const user = loadJson(CONFIG_FILE, {});
+  const user = loadJson(configFile(), {});
   return deepMerge(def, user);
 }
 
 // Guarda solo los overrides del usuario (no el default completo).
 function saveConfig(partial) {
-  const user = loadJson(CONFIG_FILE, {});
+  const user = loadJson(configFile(), {});
   const merged = deepMerge(user, partial || {});
-  saveJson(CONFIG_FILE, merged);
+  saveJson(configFile(), merged);
   return loadConfig();
 }
 

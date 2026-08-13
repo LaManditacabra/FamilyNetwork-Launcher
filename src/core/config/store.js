@@ -1,17 +1,19 @@
 // src/core/config/store.js
-// Lectura/escritura de archivos JSON en la carpeta data/ (no subida al repo).
+// Lectura/escritura de archivos JSON en la carpeta de datos (no subida al repo).
+// La carpeta se resuelve en runtime: data/ en dev, app.getPath('userData') en
+// la app empaquetada (ver src/utils setDataRoot).
 
 const fs = require('fs');
 const path = require('path');
-const { ensureDir } = require('../../utils');
+const { ensureDir, getDataRoot } = require('../../utils');
 
-const DATA_DIR = path.resolve(__dirname, '..', '..', '..', 'data');
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json');     // overrides del usuario
-const PROFILES_FILE = path.join(DATA_DIR, 'profiles.json');  // perfiles de juego
+function dataDir() { return getDataRoot(); }
+function configFile() { return path.join(dataDir(), 'config.json'); }     // overrides del usuario
+function profilesFile() { return path.join(dataDir(), 'profiles.json'); }  // perfiles de juego
 
 // Carga un JSON; si no existe o está corrupto, devuelve fallback.
 function loadJson(file, fallback) {
-  ensureDir(DATA_DIR);
+  ensureDir(dataDir());
   if (!fs.existsSync(file)) return fallback;
   try {
     return JSON.parse(fs.readFileSync(file, 'utf-8'));
@@ -21,8 +23,8 @@ function loadJson(file, fallback) {
 }
 
 function saveJson(file, obj) {
-  ensureDir(DATA_DIR);
+  ensureDir(dataDir());
   fs.writeFileSync(file, JSON.stringify(obj, null, 2), 'utf-8');
 }
 
-module.exports = { DATA_DIR, CONFIG_FILE, PROFILES_FILE, loadJson, saveJson };
+module.exports = { dataDir, configFile, profilesFile, loadJson, saveJson };
