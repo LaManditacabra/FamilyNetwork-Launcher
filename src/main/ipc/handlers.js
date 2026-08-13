@@ -240,6 +240,13 @@ function registerIpcHandlers(ipcMain) {
     }
   });
 
+  // ---- Versión del launcher (para la UI y el banner de updates) ----
+  ipcMain.handle('app:version', () => ({
+    version: app.getVersion(),
+    platform: process.platform,
+    packaged: app.isPackaged
+  }));
+
   // ---- Versiones ----
   ipcMain.handle('minecraft:getVersions', async (_e, showSnapshots) => {
     const cfg = config.loadConfig();

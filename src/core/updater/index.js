@@ -73,7 +73,7 @@ async function checkForUpdate({ repo, currentVersion, channel = 'latest', fetchF
     headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'family-launcher' },
     signal: AbortSignal.timeout(12000)
   });
-  if (res.status === 404) return { updateAvailable: false, error: 'no hay releases publicadas' };
+  if (res.status === 404) return { updateAvailable: false };
   if (!res.ok) throw new Error('GitHub devolvió HTTP ' + res.status);
 
   const release = await res.json();

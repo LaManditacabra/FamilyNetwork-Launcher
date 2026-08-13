@@ -72,3 +72,10 @@ test('checkForUpdate: sin repo configurado => sin update sin llamar a la API', a
   assert.strictEqual(r.updateAvailable, false);
   assert.strictEqual(called, false);
 });
+
+test('checkForUpdate: 404 (sin releases) => sin update y sin error', async () => {
+  const fetchFn = async () => ({ ok: false, status: 404 });
+  const r = await checkForUpdate({ repo: 'acme/launcher', currentVersion: '0.1.0', fetchFn });
+  assert.strictEqual(r.updateAvailable, false);
+  assert.strictEqual(r.error, undefined);
+});

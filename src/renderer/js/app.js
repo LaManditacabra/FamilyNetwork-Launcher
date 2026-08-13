@@ -1137,15 +1137,55 @@ btnLatest.addEventListener('click', () => {
   const updateProgressBar = document.getElementById('update-progress-bar');
   const updateProgressText = document.getElementById('update-progress-text');
   let updateData = null;
+  let currentAppVersion = '0.0.0';
+
+  async function loadAppVersion() {
+    try {
+      const info = await window.api.appVersion();
+      if (!info || !info.version) return;
+      currentAppVersion = String(info.version).replace(/^v/i, '');
+      const el = document.getElementById('app-version');
+      if (el) el.textContent = currentAppVersion;
+    } catch { /* sin datos, el badge queda vacío */ }
+  }
 
   function showUpdateBanner(result) {
     if (!updateBanner) return;
     updateData = result;
-    if (!result.updateAvailable || !result.asset) { updateBanner.hidden = true; return; }
-    updateTitle.textContent = 'Nueva versión ' + result.version + ' disponible';
-    updateSub.textContent = 'La tenés en ' + (result.asset.name || 'un solo clic') + ' · ' +
-      (result.name || '') + (result.notes ? ' · ' + String(result.notes).split('\n')[0] : '');
+
+    const showButtons = (show) => {
+      for (const id of ['btn-update-now', 'btn-update-later']) {
+        const b = document.getElementById(id);
+        if (b) b.style.display = show ? '' : 'none';
+      }
+    };
+
+    if (result.updateAvailable && result.asset) {
+      updateBanner.dataset.state = 'update';
+      updateTitle.textContent = 'Nueva versión ' + result.version + ' disponible';
+      updateSub.textContent = 'Estás en v' + currentAppVersion + ' → v' + result.version +
+        ' · ' + (result.asset.name || '') +
+        (result.notes ? ' · ' + String(result.notes).split('\n')[0] : '');
+      updateProgress.hidden = true;
+      showButtons(true);
+      updateBanner.hidden = false;
+      return;
+    }
+
+    // Sin update listo: banner informativo con la versión actual. Si el check
+    // falló por red (transitorio) se oculta; "sin repo configurado" es un
+    // estado informativo que igual conviene mostrar junto a la versión.
+    const err = result.error || '';
+    if (err && !/no configurado|sin repo/i.test(err)) {
+      updateBanner.hidden = true;
+      return;
+    }
+    updateBanner.dataset.state = 'current';
+    updateTitle.textContent = '¡Estás al día!';
+    updateSub.textContent = 'Family Launcher v' + currentAppVersion +
+      ' — si publicamos una versión nueva, te avisamos acá';
     updateProgress.hidden = true;
+    showButtons(false);
     updateBanner.hidden = false;
   }
 
@@ -1229,6 +1269,7 @@ btnLatest.addEventListener('click', () => {
 
     refreshHeroStatus();
     refreshBedrockStatus();
+    await loadAppVersion();
     checkForUpdates();
   })();
 });

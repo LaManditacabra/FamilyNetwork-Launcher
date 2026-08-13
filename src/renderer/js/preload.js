@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
 
   config: () => ipcRenderer.invoke('config:get'),
   setSkin: (id) => ipcRenderer.invoke('config:setSkin', id),
+  appVersion: () => ipcRenderer.invoke('app:version'),
 
   profiles: {
     list: () => ipcRenderer.invoke('profiles:list'),

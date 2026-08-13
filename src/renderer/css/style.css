@@ -176,6 +176,33 @@ body {
   box-shadow: var(--shadow);
 }
 .update-banner[hidden] { display: none; }
+.update-banner[data-state="current"] {
+  background: linear-gradient(135deg, rgba(74, 214, 196, 0.10), rgba(74, 214, 196, 0.04));
+  border-color: rgba(74, 214, 196, 0.35);
+}
+.update-banner[data-state="current"] .update-info strong {
+  color: #4ad6c4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.update-banner[data-state="current"] .update-info strong::before {
+  content: '✓';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(74, 214, 196, 0.16);
+  border: 1px solid rgba(74, 214, 196, 0.5);
+  color: #4ad6c4;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 12px rgba(74, 214, 196, 0.25);
+}
+.update-banner[data-state="current"] .update-actions { display: none; }
 .update-info {
   display: flex;
   flex-direction: column;
@@ -591,6 +618,8 @@ select {
 .statusbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 0 14px;
   background: #0c0e13;
   border-top: 1px solid var(--line);
@@ -602,6 +631,14 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.statusbar #status { flex: 1 1 auto; }
+.app-version {
+  flex-shrink: 0;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(255, 216, 74, 0.75);
+}
+.app-version::before { content: 'v'; opacity: 0.7; }
 
 /* Scrollbar acorde al tema */
 .content::-webkit-scrollbar { width: 10px; }
