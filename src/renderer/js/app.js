@@ -627,8 +627,7 @@ function drawFigure(ctx, img, s) {
   }
   function edOpen() {
     editorModal.hidden = false;
-    const selP = currentProfiles.find((x) => x.id === profileSelect.value);
-    editorName.value = (profileName.value && profileName.value.trim()) || (selP && selP.name) || '';
+    editorName.value = '';
     editorStatus.textContent = '';
     edPixels = new Uint8ClampedArray(ED_SIZE * ED_SIZE * 4);
     edUndo.length = 0;
@@ -679,9 +678,19 @@ function drawFigure(ctx, img, s) {
     edRenderView();
     editorStatus.textContent = 'Base cargada: ' + sel.label + ' — editá y subí tu skin';
   }
+    // Nombre con el que jugás en el server (el perfil manda). Las skins propias
+  // se registran bajo este nombre en el backend para que te aparezcan en el
+  // juego; el "nombre de la skin" del creador es solo la etiqueta de la galería.
+  function currentPlayName() {
+    const selP = currentProfiles.find((x) => x.id === profileSelect.value);
+    if (selP && selP.name) return selP.name;
+    const n = (profileName.value || '').trim();
+    return n || 'Player';
+  }
+
   async function edUpload() {
-    const name = (editorName.value || '').trim();
-    if (!name) { editorStatus.textContent = 'Escribí el nombre con el que jugás'; return; }
+    const label = (editorName.value || '').trim() || 'Mi skin';
+    const player = currentPlayName();
     if (!skinsApiBase) { editorStatus.textContent = 'No hay backend de skins configurado'; return; }
     let token = '';
     try { token = (await window.api.config()).skinApi.token || ''; } catch {}
@@ -692,33 +701,32 @@ function drawFigure(ctx, img, s) {
 
     btnEditorUpload.disabled = true;
     editorStatus.textContent = 'Subiendo…';
-    setStatus('Subiendo skin de ' + name + '…');
+    setStatus('Subiendo skin…');
     try {
       const res = await fetch(skinsApiBase + '/skin/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ player: name, image: dataUrl })
+        body: JSON.stringify({ player, image: dataUrl })
       });
       const j = await res.json();
       if (!res.ok || !j.ok) {
         editorStatus.textContent = 'No se pudo subir: ' + (j.error || res.status);
         return;
       }
-      const id = 'custom-' + name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (!window.SKINS.some((s) => s.id === id)) {
-        window.SKINS.push({ id, label: name + ' (propia)', name });
-      }
+      const id = 'custom-' + label.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const existing = window.SKINS.find((s) => s.id === id);
+      if (existing) { existing.label = label + ' (propia)'; existing.name = player; }
+      else window.SKINS.push({ id, label: label + ' (propia)', name: player });
       profileSkin.value = id;
       selectedSkinId = id;
       skinImgCache.delete(id); // fuerza recarga fresca de la textura
       if (skinGrid) buildSkinGallery();
       else syncSkinFromSelect();
-      // La skin propia es independiente del perfil: se aplica globalmente,
-      // y el nombre queda listo para jugar (sin guardar/crear un perfil).
+      // La skin queda seleccionada en "Elegí tu skin"; jugás con el nombre del
+      // perfil, que es justamente donde quedó registrada.
       await window.api.setSkin(id);
-      if (!profileSelect.value) profileName.value = name;
-      editorStatus.textContent = 'Skin subida y aplicada a ' + name;
-      setStatus('Skin propia de ' + name + ' aplicada');
+      editorStatus.textContent = '"' + label + '" creada — elegila en "Elegí tu skin"';
+      setStatus('Skin "' + label + '" creada y seleccionada');
       edClose();
     } catch (e) {
       editorStatus.textContent = 'Error de red: ' + e.message;
@@ -1255,9 +1263,11 @@ btnLatest.addEventListener('click', () => {
     }
 
     // Reincorpora skins propias (subidas con el creador) si quedó guardada.
+    // La skin quedó registrada bajo el nombre del perfil: la etiqueta es el
+    // nombre que le dimos en el creador y el player name se toma del perfil.
     if (savedSkin.startsWith('custom-') && !window.SKINS.some((s) => s.id === savedSkin)) {
       const nm = savedSkin.replace('custom-', '');
-      window.SKINS.push({ id: savedSkin, label: nm + ' (propia)', name: nm });
+      window.SKINS.push({ id: savedSkin, label: nm + ' (propia)', name: currentPlayName() });
     }
 
     // Base de la API de skins (usa yggdrasil.api, o skinApi.url sin el /skin).

@@ -764,6 +764,7 @@ select {
 .editor-right-actions { width: 100%; }
 #btn-editor-upload { width: 100%; padding: 12px 14px; border-radius: 12px; }
 #editor-status { min-height: 16px; font-size: 12px; }
+.editor-hint { font-size: 11px; color: var(--muted); line-height: 1.45; }
 
 /* ---- Mods (loaders + Modrinth) ---- */
 .mods-box { width: min(860px, 94vw); }
