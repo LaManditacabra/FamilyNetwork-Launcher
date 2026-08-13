@@ -4,6 +4,12 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
 
+// Icono de las ventanas = logo del server. En Windows el shell prefiere .ico;
+// en Linux/macOS el PNG funciona directo.
+const appIcon = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'assets', 'icons', 'icon.ico')
+  : path.join(__dirname, '..', '..', 'assets', 'icons', 'icon.png');
+
 function createMainWindow() {
   const win = new BrowserWindow({
     width: 1100,
@@ -12,6 +18,7 @@ function createMainWindow() {
     minHeight: 600,
     frame: false, // Ventana sin bordes del sistema (estilo launcher moderno)
     backgroundColor: '#08090c',
+    icon: appIcon,
     webPreferences: {
       preload: path.join(__dirname, '..', 'renderer', 'js', 'preload.js'),
       contextIsolation: true,
@@ -38,6 +45,7 @@ function createModsWindow() {
     minHeight: 560,
     frame: false,
     backgroundColor: '#08090c',
+    icon: appIcon,
     webPreferences: {
       preload: path.join(__dirname, '..', 'renderer', 'js', 'preload_mods.js'),
       contextIsolation: true,
