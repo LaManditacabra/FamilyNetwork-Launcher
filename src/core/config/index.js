@@ -3,6 +3,7 @@
 // Fusiona config/default.json (proyecto) + data/config.json (usuario).
 
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 const { DEFAULT_CONFIG } = require('./defaults');
 const { configFile, loadJson, saveJson } = require('./store');
@@ -49,10 +50,21 @@ function getGameDirectory() {
   return resolvePath(loadConfig().gameDirectory);
 }
 
+// ID único por instalación. Identifica "quién" sube/borra/comparte skins en el
+// backend (owner). Se genera la primera vez y se persiste en data/config.json.
+function getDeviceId() {
+  const user = loadJson(configFile(), {});
+  if (user.deviceId && typeof user.deviceId === 'string') return user.deviceId;
+  const id = crypto.randomUUID();
+  saveJson(configFile(), { ...user, deviceId: id });
+  return id;
+}
+
 module.exports = {
   loadConfig,
   saveConfig,
   getGameDirectory,
+  getDeviceId,
   getProfiles: profiles.getProfiles,
   addProfile: profiles.addProfile,
   updateProfile: profiles.updateProfile,

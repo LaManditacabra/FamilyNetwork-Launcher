@@ -57,6 +57,9 @@ function registerIpcHandlers(ipcMain) {
   // ---- Configuración y perfiles ----
   ipcMain.handle('config:get', async () => config.loadConfig());
 
+  // ID único por instalación (dueño de las skins propias).
+  ipcMain.handle('config:getDeviceId', async () => config.getDeviceId());
+
   ipcMain.handle('profiles:list', async () => ({
     profiles: config.getProfiles(),
     selected: config.loadConfig().selectedProfileId
@@ -553,7 +556,7 @@ function registerIpcHandlers(ipcMain) {
             'Content-Type': 'application/json',
             ...(cfg.skinApi.token ? { Authorization: 'Bearer ' + cfg.skinApi.token } : {})
           },
-          body: JSON.stringify({ player: account.username, skin: skinName }),
+          body: JSON.stringify({ player: account.username, skin: skinName, owner: config.getDeviceId() }),
           signal: ctrl.signal
         });
         clearTimeout(timer);

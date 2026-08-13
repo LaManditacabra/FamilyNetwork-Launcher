@@ -131,8 +131,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Al elegir un perfil guardado, carga sus datos en el formulario.
-  // La skin NO se carga del perfil: el selector de skins es independiente.
+  // Al elegir un perfil guardado, carga sus datos (incluida su skin) en el
+  // formulario. La skin es POR PERFIL: se aplica la que eligió para ese perfil.
   function applyProfileToForm(profiles) {
     const id = profileSelect.value;
     if (!id) {
@@ -146,6 +146,11 @@ window.addEventListener('DOMContentLoaded', () => {
     profileName.value = p.name || '';
     profileMemMin.value = (p.memory && p.memory.min) || 1024;
     profileMemMax.value = (p.memory && p.memory.max) || 4096;
+    // Skin del perfil; si no tiene, se conserva la del selector (fallback).
+    if (p.skin) {
+      selectedSkinId = p.skin;
+      if (profileSkin) profileSkin.value = p.skin;
+    }
   }
 
   // ---- Galería visual de skins (previz de la skin antes de jugar) ----
@@ -197,6 +202,7 @@ function drawFigure(ctx, img, s) {
 
   // Regiones del skin → URL/textura (backend Yggdrasil, misma fuente que el juego).
   let skinsApiBase = '';
+  let deviceId = ''; // ID único por instalación (dueño de skins propias)
   const skinImgCache = new Map(); // id de skin -> { url, img }
 
   async function fetchSkinTexture(name) {
@@ -204,7 +210,8 @@ function drawFigure(ctx, img, s) {
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8000);
-      const res = await fetch(skinsApiBase + '/api/skin/' + encodeURIComponent(name), { signal: ctrl.signal, cache: 'no-store' });
+      const qs = deviceId ? '?owner=' + encodeURIComponent(deviceId) : '';
+      const res = await fetch(skinsApiBase + '/api/skin/' + encodeURIComponent(name) + qs, { signal: ctrl.signal, cache: 'no-store' });
       clearTimeout(t);
       if (!res.ok) return null;
       const data = await res.json();
@@ -297,10 +304,17 @@ function drawFigure(ctx, img, s) {
       return;
     }
     try {
+      // La skin se resuelve globalmente por NOMBRE al jugar (el backend busca
+      // primero entre las skins propias registradas, luego cache/Mojang).
       // Aplicar = elegirla como skin global (independiente del perfil).
       await window.api.setSkin(id);
       profileSkin.value = id;
       selectedSkinId = id;
+      // La skin queda guardada en el perfil seleccionado (skin por perfil).
+      const pid = profileSelect.value;
+      if (pid) {
+        try { await window.api.profiles.update(pid, { skin: id }); } catch { /* best-effort */ }
+      }
       for (const tile of skinGrid.querySelectorAll('.skin-tile')) {
         tile.classList.toggle('selected', tile.dataset.id === id);
       }
@@ -335,6 +349,13 @@ function drawFigure(ctx, img, s) {
       cv.className = 'skin-thumb';
       const span = document.createElement('span');
       span.textContent = s.label;
+      // Marca visual del estado de skins propias: privada / en revisión / pública.
+      if (s.status) {
+        const badge = document.createElement('i');
+        badge.className = 'skin-status ' + s.status;
+        badge.textContent = s.status === 'public' ? 'pública' : (s.status === 'pending' ? 'en revisión' : 'privada');
+        span.appendChild(badge);
+      }
       const ctx = cv.getContext('2d');
       tile.appendChild(cv);
       tile.appendChild(span);
@@ -354,6 +375,46 @@ function drawFigure(ctx, img, s) {
         }
       })();
 
+      if (s.id && s.id.startsWith('custom-') && deviceId && s.owner === deviceId) {
+        const isPublic = s.status === 'public';
+        if (!isPublic) {
+          const del = document.createElement('button');
+          del.className = 'skin-del';
+          del.title = 'Eliminar esta skin propia';
+          del.textContent = '✕';
+          del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openConfirm({
+              title: 'Eliminar skin propia',
+              detailHTML: '<div class="v-name"><span class="v-id">' + s.label.replace(/ \(propia\)$/, '') + '</span></div>',
+              text: 'Se borrará "' + s.label + '" del servidor de skins. Los perfiles que la usan pasarán a su skin por defecto. Esta acción no se puede deshacer.',
+              confirmLabel: 'Eliminar',
+              onConfirm: () => deleteCustomSkin(s, tile, del)
+            });
+          });
+          tile.appendChild(del);
+        }
+        // Compartir: solo skins propias PRIVADAS. Las públicas ya son de todos;
+        // las pending están a la espera de la decisión del admin.
+        if (s.status === 'private') {
+          const share = document.createElement('button');
+          share.className = 'skin-share';
+          share.title = 'Compartir esta skin en el launcher (requiere aprobación)';
+          share.textContent = '⇧';
+          share.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openConfirm({
+              title: 'Compartir skin en el launcher',
+              detailHTML: '<div class="v-name"><span class="v-id">' + s.label.replace(/ \(propia\)$/, '') + '</span></div>',
+              text: '"' + s.label + '" se enviará al admin para que apruebe compartirla con todos los usuarios del launcher. Mientras tanto, vos seguís pudiendo usarla.',
+              confirmLabel: 'Compartir',
+              onConfirm: () => shareCustomSkin(s, share)
+            });
+          });
+          tile.appendChild(share);
+        }
+      }
+
       skinGrid.appendChild(tile);
     }
     drawSkinBig(current);
@@ -363,7 +424,12 @@ function drawFigure(ctx, img, s) {
 
   function selectSkin(id) {
     selectedSkinId = id;
-    if (profileSkin) profileSkin.value = id;
+    // Solo refleja en el select si existe el option; el valor de referencia es
+    // selectedSkinId (que btnPlay usa como fuente de verdad).
+    if (profileSkin) {
+      const hasOpt = Array.from(profileSkin.options).some((o) => o.value === id);
+      if (hasOpt) profileSkin.value = id;
+    }
     for (const tile of skinGrid.querySelectorAll('.skin-tile')) {
       tile.classList.toggle('selected', tile.dataset.id === id);
     }
@@ -382,6 +448,95 @@ function drawFigure(ctx, img, s) {
     drawSkinBig(id);
     updateUseButton(id);
     syncSkinField(id);
+  }
+
+  async function deleteCustomSkin(s, tile, del) {
+    if (!skinsApiBase) return;
+    let token = '';
+    try { token = (await window.api.config()).skinApi.token || ''; } catch {}
+    if (!token) {
+      setStatus('Sin token para eliminar la skin');
+      return;
+    }
+    del.disabled = true;
+    del.textContent = '…';
+    setStatus('Eliminando skin…');
+    try {
+      const res = await fetch(skinsApiBase + '/skin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        // El nombre registrado en el backend es 'custom-<nameSanitizado>' (el
+        // id), no el rótulo ni el nombre del perfil; así el delete siempre
+        // resuelve la fila de launcher_players aunque el tile venga de un
+        // perfil guardado (reviveCustom).
+        body: JSON.stringify({ name: s.id.replace(/^custom-/, ''), owner: deviceId })
+      });
+      const j = await res.json();
+      if (!res.ok || !j.ok) {
+        del.disabled = false;
+        del.textContent = '✕';
+        setStatus('No se pudo eliminar la skin: ' + (j.error || res.status));
+        return;
+      }
+      window.SKINS = window.SKINS.filter((x) => x.id !== s.id);
+      skinImgCache.delete(s.id);
+      // Perfiles que usaban esta skin vuelven a la skin por defecto.
+      for (const p of currentProfiles) {
+        if (p.skin === s.id) {
+          try { await window.api.profiles.update(p.id, { skin: '' }); } catch {}
+        }
+      }
+      if (selectedSkinId === s.id) {
+        selectedSkinId = '';
+        if (profileSkin) profileSkin.value = '';
+        try { await window.api.setSkin(''); } catch {}
+      }
+      populateSkinSelect();
+      if (skinGrid) buildSkinGallery();
+      else syncSkinFromSelect();
+      setStatus('Skin "' + s.label + '" eliminada');
+    } catch (e) {
+      del.disabled = false;
+      del.textContent = '✕';
+      setStatus('No se pudo eliminar la skin: ' + e.message);
+    }
+  }
+
+  async function shareCustomSkin(s, shareBtn) {
+    if (!skinsApiBase) return;
+    let token = '';
+    try { token = (await window.api.config()).skinApi.token || ''; } catch {}
+    if (!token) {
+      setStatus('Sin token para compartir la skin');
+      return;
+    }
+    shareBtn.disabled = true;
+    shareBtn.textContent = '…';
+    setStatus('Enviando skin a moderación…');
+    try {
+      const res = await fetch(skinsApiBase + '/skin/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name: s.id.replace(/^custom-/, ''), owner: deviceId })
+      });
+      const j = await res.json();
+      if (!res.ok || !j.ok) {
+        shareBtn.disabled = false;
+        shareBtn.textContent = '⇧';
+        setStatus('No se pudo compartir la skin: ' + (j.error || res.status));
+        return;
+      }
+      s.status = 'pending';
+      s.owner = deviceId;
+      skinImgCache.delete(s.id);
+      if (skinGrid) buildSkinGallery();
+      else syncSkinFromSelect();
+      setStatus('Skin "' + s.label + '" enviada para revisión del admin');
+    } catch (e) {
+      shareBtn.disabled = false;
+      shareBtn.textContent = '⇧';
+      setStatus('No se pudo compartir la skin: ' + e.message);
+    }
   }
 
 // ---- Creador de skins: editor por vistas (frente / lados / atrás) ----
@@ -656,7 +811,8 @@ function drawFigure(ctx, img, s) {
     let url = '';
     if (sel && sel.name && skinsApiBase) {
       try {
-        const res = await fetch(skinsApiBase + '/api/skin/' + encodeURIComponent(sel.name));
+        const qs = deviceId ? '?owner=' + encodeURIComponent(deviceId) : '';
+        const res = await fetch(skinsApiBase + '/api/skin/' + encodeURIComponent(sel.name) + qs);
         const d = await res.json();
         if (d.ok && d.url) url = d.url;
       } catch {}
@@ -678,19 +834,12 @@ function drawFigure(ctx, img, s) {
     edRenderView();
     editorStatus.textContent = 'Base cargada: ' + sel.label + ' — editá y subí tu skin';
   }
-    // Nombre con el que jugás en el server (el perfil manda). Las skins propias
-  // se registran bajo este nombre en el backend para que te aparezcan en el
-  // juego; el "nombre de la skin" del creador es solo la etiqueta de la galería.
-  function currentPlayName() {
-    const selP = currentProfiles.find((x) => x.id === profileSelect.value);
-    if (selP && selP.name) return selP.name;
-    const n = (profileName.value || '').trim();
-    return n || 'Player';
-  }
-
-  async function edUpload() {
+    async function edUpload() {
     const label = (editorName.value || '').trim() || 'Mi skin';
-    const player = currentPlayName();
+    // Cada skin propia se registra con un nombre propio derivado del label
+    // (no del perfil), para que los tiles custom resuelvan a su textura exacta
+    // y no se pisen entre sí al subir varias skins. Máx 16 chars como name.
+    const player = label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16) || 'skin';
     if (!skinsApiBase) { editorStatus.textContent = 'No hay backend de skins configurado'; return; }
     let token = '';
     try { token = (await window.api.config()).skinApi.token || ''; } catch {}
@@ -706,24 +855,25 @@ function drawFigure(ctx, img, s) {
       const res = await fetch(skinsApiBase + '/skin/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ player, image: dataUrl })
+        body: JSON.stringify({ player, image: dataUrl, owner: deviceId })
       });
       const j = await res.json();
       if (!res.ok || !j.ok) {
         editorStatus.textContent = 'No se pudo subir: ' + (j.error || res.status);
         return;
       }
-      const id = 'custom-' + label.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const id = 'custom-' + player;
       const existing = window.SKINS.find((s) => s.id === id);
-      if (existing) { existing.label = label + ' (propia)'; existing.name = player; }
-      else window.SKINS.push({ id, label: label + ' (propia)', name: player });
+      if (existing) { existing.label = label + ' (propia)'; existing.name = player; existing.status = 'private'; existing.owner = deviceId; }
+      else window.SKINS.push({ id, label: label + ' (propia)', name: player, status: 'private', owner: deviceId });
+      populateSkinSelect(); // el select oculto también debe conocer las skins propias
       profileSkin.value = id;
       selectedSkinId = id;
       skinImgCache.delete(id); // fuerza recarga fresca de la textura
       if (skinGrid) buildSkinGallery();
       else syncSkinFromSelect();
-      // La skin queda seleccionada en "Elegí tu skin"; jugás con el nombre del
-      // perfil, que es justamente donde quedó registrada.
+      // La skin queda seleccionada en "Elegí tu skin": al jugar se manda su
+      // nombre propio derivado del label, y el backend la aplica al perfil.
       await window.api.setSkin(id);
       editorStatus.textContent = '"' + label + '" creada — elegila en "Elegí tu skin"';
       setStatus('Skin "' + label + '" creada y seleccionada');
@@ -857,12 +1007,13 @@ function drawFigure(ctx, img, s) {
 
     try {
       const id = profileSelect.value;
+      const skinId = profileSkin ? profileSkin.value : '';
       let saved;
       if (id) {
-        saved = await window.api.profiles.update(id, { name, memory });
+        saved = await window.api.profiles.update(id, { name, memory, skin: skinId });
         setStatus(`Perfil "${name}" actualizado`);
       } else {
-        saved = await window.api.profiles.add({ name, memory });
+        saved = await window.api.profiles.add({ name, memory, skin: skinId });
         setStatus(`Perfil "${name}" guardado`);
       }
       const profiles = await loadProfiles();
@@ -931,22 +1082,37 @@ btnLatest.addEventListener('click', () => {
   // nativo). Recibe la versión y la acción a ejecutar si se confirma.
   let pendingRemove = null;
   let confirmModal = null;
-  function openConfirmRemove(version, onConfirm) {
+  function openConfirm(opts) {
     if (!confirmModal) confirmModal = document.getElementById('confirm-version-modal');
+    const title = document.getElementById('confirm-title');
     const detail = document.getElementById('confirm-detail');
-    detail.innerHTML =
-      '<div class="v-name"><span class="v-id">' + version.id + '</span> ' + loaderBadge(version.type) + '</div>' +
-      '<div class="v-sub">' + fmtSize(version.sizeBytes) +
-      (version.releaseTime ? ' · ' + new Date(version.releaseTime).toLocaleDateString() : '') + '</div>';
-    const usedBy = currentProfiles.filter((p) => p.versionId === version.id);
     const text = document.getElementById('confirm-text');
-    text.textContent = 'Se borrará "' + version.id + '" del disco.' +
-      (usedBy.length
-        ? ' Además, eliminará ' + usedBy.length + ' perfil(es) que la usan.'
-        : ' Los perfiles que la usen se eliminarán.') +
-      ' Esta acción no se puede deshacer.';
-    pendingRemove = { onConfirm };
+    const yes = document.getElementById('btn-confirm-yes');
+    if (title) title.textContent = opts.title || 'Confirmar';
+    if (detail) detail.innerHTML = opts.detailHTML || '';
+    if (text) text.textContent = opts.text || '';
+    if (yes) yes.textContent = opts.confirmLabel || 'Confirmar';
+    pendingRemove = { onConfirm: opts.onConfirm };
     confirmModal.hidden = false;
+  }
+  function openConfirmRemove(version, onConfirm) {
+    openConfirm({
+      title: 'Desinstalar versión',
+      detailHTML:
+        '<div class="v-name"><span class="v-id">' + version.id + '</span> ' + loaderBadge(version.type) + '</div>' +
+        '<div class="v-sub">' + fmtSize(version.sizeBytes) +
+        (version.releaseTime ? ' · ' + new Date(version.releaseTime).toLocaleDateString() : '') + '</div>',
+      text: (() => {
+        const usedBy = currentProfiles.filter((p) => p.versionId === version.id);
+        return 'Se borrará "' + version.id + '" del disco.' +
+          (usedBy.length
+            ? ' Además, eliminará ' + usedBy.length + ' perfil(es) que la usan.'
+            : ' Los perfiles que la usen se eliminarán.') +
+          ' Esta acción no se puede deshacer.';
+      })(),
+      confirmLabel: 'Desinstalar',
+      onConfirm
+    });
   }
 
   async function renderVersionsList() {
@@ -1062,13 +1228,12 @@ btnLatest.addEventListener('click', () => {
       const selP = currentProfiles.find((x) => x.id === selId);
       if (selP && selP.name) name = selP.name;
       else if (profileName.value && profileName.value.trim()) name = profileName.value.trim();
-      // La skin a aplicar por nombre solo aplica para las de la galería;
-      // las subidas (propias, id custom-) van servidas por Yggdrasil client-side
-      // y no se re-aplican (re-aplicarlas por nombre las pisaría con la cuenta
-      // Mojang real del mismo nombre).
-      const skId = profileSkin.value || ''; // skin global, independiente del perfil
+      // La skin se manda por NOMBRE al backend, que la resuelve en orden:
+      // skins propias registradas (launcher_players) → cache/Mojang. Así una
+      // skin propia (custom-) se aplica sin re-subir imágenes ni pisar otras.
+      const skId = selectedSkinId || profileSkin.value || '';
       const skSel = window.SKINS.find((x) => x.id === skId);
-      if (skSel && skSel.name && !skId.startsWith('custom-')) skin = skSel.name;
+      if (skSel && skSel.name) skin = skSel.name;
       const account = {
         username: name,
         uuid: '', // el proceso principal deriva el UUID offline determinístico
@@ -1254,26 +1419,70 @@ btnLatest.addEventListener('click', () => {
 
     let cfg = null;
     try { cfg = await window.api.config(); } catch { cfg = null; }
+    try { deviceId = (await window.api.getDeviceId()) || ''; } catch { deviceId = ''; }
 
     // Skin global (independiente del perfil), persistida entre sesiones.
     const savedSkin = (cfg && cfg.selectedSkinId) || '';
-    if (savedSkin) {
-      selectedSkinId = savedSkin;
-      if (profileSkin) profileSkin.value = savedSkin;
-    }
 
     // Reincorpora skins propias (subidas con el creador) si quedó guardada.
     // La skin quedó registrada bajo el nombre del perfil: la etiqueta es el
     // nombre que le dimos en el creador y el player name se toma del perfil.
-    if (savedSkin.startsWith('custom-') && !window.SKINS.some((s) => s.id === savedSkin)) {
-      const nm = savedSkin.replace('custom-', '');
-      window.SKINS.push({ id: savedSkin, label: nm + ' (propia)', name: currentPlayName() });
+    const reviveCustom = (id, nm) => {
+      if (!id || !id.startsWith('custom-')) return;
+      if (window.SKINS.some((s) => s.id === id)) return;
+      window.SKINS.push({ id, label: nm + ' (propia)', name: nm });
+    };
+    // Skin guardada a nivel global (selección persistida).
+    reviveCustom(savedSkin, savedSkin.replace('custom-', ''));
+    // Todas las skins elegidas por perfil (para que las que ya laburaste
+    // vuelvan a aparecer aunque cambies la selección global).
+    for (const p of currentProfiles) reviveCustom(p.skin, p.name || (p.skin && p.skin.replace('custom-', '')) || '');
+
+    // La skin activa: la del perfil seleccionado; si no tiene, la global.
+    const selP = currentProfiles.find((x) => x.id === profileSelect.value);
+    const activeSkin = (selP && selP.skin) || savedSkin || '';
+    if (activeSkin) {
+      selectedSkinId = activeSkin;
+      if (profileSkin) profileSkin.value = activeSkin;
     }
+    populateSkinSelect(); // re-sincroniza el select oculto con las skins propias
+    if (profileSkin && activeSkin) profileSkin.value = activeSkin;
 
     // Base de la API de skins (usa yggdrasil.api, o skinApi.url sin el /skin).
     if (cfg) {
       skinsApiBase = (cfg.yggdrasil && cfg.yggdrasil.api && String(cfg.yggdrasil.api).replace(/\/+$/, ''))
         || (cfg.skinApi && cfg.skinApi.url ? cfg.skinApi.url.replace(/\/?skin\/?$/, '').replace(/\/+$/, '') : '');
+    }
+    // Revive las skins propias que están registradas en el backend (aunque la
+    // selección global apunte a otra): arma el tile custom-<nombre> con el
+    // name correcto para que la skin que usa cada perfil siempre figure.
+    if (skinsApiBase) {
+      try {
+        let token = '';
+        try { token = (await window.api.config()).skinApi.token || ''; } catch {}
+        const res = await fetch(skinsApiBase + '/api/skins' + (deviceId ? '?owner=' + encodeURIComponent(deviceId) : ''), {
+          headers: token ? { Authorization: 'Bearer ' + token } : {}
+        });
+        if (res.ok) {
+          const j = await res.json();
+          for (const s of (j.skins || [])) {
+            if (!s || !s.name) continue;
+            const id = 'custom-' + s.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const existing = window.SKINS.find((x) => x.id === id);
+            if (existing) {
+              existing.name = s.name;
+              existing.status = s.status;
+              existing.owner = s.owner;
+            } else {
+              window.SKINS.push({ id, label: s.name + ' (propia)', name: s.name, status: s.status, owner: s.owner });
+            }
+          }
+          // Los tiles custom de /api/skins deben existir como opciones del
+          // select oculto: si no, al elegirlos el select queda vacío y btnPlay
+          // mandaría skin='' (borraría la skin). Re-sincroniza después.
+          populateSkinSelect();
+        }
+      } catch { /* sin backend no hay skins propias que listar */ }
     }
     if (skinGrid) buildSkinGallery();
 

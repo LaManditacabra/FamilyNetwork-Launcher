@@ -537,7 +537,9 @@ select {
   font-weight: 900;
   font-size: 13px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  z-index: 1;
 }
+.skin-tile.selected:has(.skin-del)::after { right: 20px; }
 .skin-tile canvas {
   image-rendering: pixelated;
 }
@@ -553,6 +555,65 @@ select {
 }
 .skin-tile.selected span { color: var(--gold); }
 .skin-tile.no-img span.op { font-style: italic; color: var(--muted); }
+.skin-tile .skin-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(20, 18, 34, 0.85);
+  color: var(--danger, #e0556d);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  z-index: 2;
+}
+.skin-tile:hover .skin-del { opacity: 1; }
+.skin-tile .skin-del:hover { background: var(--danger, #e0556d); color: #fff; }
+.skin-tile .skin-del:disabled { opacity: 0.45; cursor: default; }
+.skin-tile .skin-share {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(20, 18, 34, 0.85);
+  color: var(--gold, #ffd84a);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  z-index: 2;
+}
+.skin-tile:hover .skin-share { opacity: 1; }
+.skin-tile .skin-share:hover { background: var(--gold, #ffd84a); color: #18150c; }
+.skin-tile .skin-share:disabled { opacity: 0.45; cursor: default; }
+.skin-status {
+  display: block;
+  margin-top: 3px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.skin-status.public { color: #7ee2a8; }
+.skin-status.pending { color: #f3d27e; }
+.skin-status.private { color: #b9b6dd; }
 
 .skin-actions {
   margin-top: 14px;

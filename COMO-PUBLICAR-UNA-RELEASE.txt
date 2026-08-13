@@ -1,0 +1,162 @@
+=============================================================
+ COMO PUBLICAR UNA VERSION NUEVA DEL LAUNCHER (release)
+=============================================================
+ Autor: Family Network
+ Uso: cada vez que quieras sacar una versión nueva del launcher
+      para que tus jugadores la reciban solos.
+
+-------------------------------------------------------------
+ 1) CONCEPTO (leer una vez y listo)
+-------------------------------------------------------------
+El launcher tiene un ACTUALIZADOR que, al abrirse, le pregunta
+a GitHub: "¿hay una release mas nueva que mi version?".
+
+La "release" es una publicacion en el repo GitHub que tiene
+adjunto el INSTALADOR (.exe). Cuando vos publicas una release,
+el launcher de tus jugadores la detecta y se actualiza solo.
+
+Flujo:
+    vos publicas release vX.Y.Z (con el .exe adentro)
+            |
+    el jugador abre el launcher (version mas vieja)
+            |
+    el launcher consulta GitHub -> ve vX.Y.Z > su version
+            |
+    banner "Estas en vA -> vB" + boton "Actualizar ahora"
+            |
+    baja el .exe y lo instala solo (Windows: /S)
+
+REGLAS DE ORO:
+  * El numero de version de package.json, el nombre del .exe
+    y el tag de la release deben ser IGUALES (ej: 0.1.2, 
+    "Family Launcher Setup 0.1.2.exe", tag v0.1.2).
+  * Si no coinciden, el launcher detecta un update que nunca
+    se resuelve (baja lo mismo, ofrece update de nuevo).
+  * El archivo que se sube es el "Setup" (el instalador NSIS),
+    NO el portable y NO la carpeta win-unpacked.
+
+-------------------------------------------------------------
+ 2) PASO 1: subir la version en package.json
+-------------------------------------------------------------
+Abrir:  FAMILY LAUNCHER\package.json
+
+Buscar: "version": "0.1.2"   <-- subir este numero
+Poner:  "version": "0.2.0"   (o lo que corresponda)
+
+Commiter y pushear (desde WSL o Windows):
+    git add package.json
+    git commit -m "Bump version a X.Y.Z"
+    git push
+
+-------------------------------------------------------------
+ 3) PASO 2: compilar el instalador (WINDOWS)
+-------------------------------------------------------------
+El instalador lo fabrica electron-builder. No se descarga;
+se compila en tu maquina Windows.
+
+  a) Abrir PowerShell COMO ADMINISTRADOR
+     (clic derecho en PowerShell -> Ejecutar como administrador)
+     IMPORTANTE: si no lo abris como admin, falla el paso
+     "winCodeSign" con el error:
+       "Cannot create symbolic link ... libcrypto.dylib"
+       (son permisos de Windows, no un bug del codigo)
+
+  b) Ir a la carpeta:
+       cd J:\Proyectos\ServerDeMinecraft\FAMILY LAUNCHER
+
+  c) Compilar:
+       npm run build:win
+
+     Tarda unos minutos: baja el binario de Electron,
+     extrae las herramientas de firma y arma el instalador.
+
+  d) Cuando termine, revisar que exista:
+       ls .\dist\
+     Tiene que aparecer:
+       Family Launcher Setup X.Y.Z.exe   (unos 74 MB)
+
+     SI NO APARECE:
+       * el build corto a mitad (error winCodeSign) ->
+         repetir todo en PowerShell como administrador.
+       * pegar el ultimo error y revisarlo.
+
+-------------------------------------------------------------
+ 4) PASO 3: subir el Setup a GitHub (navegador)
+-------------------------------------------------------------
+  1) Ir a:
+     https://github.com/LaManditacabra/FamilyNetwork-Launcher/releases
+
+  2) Boton verde "Draft a new release".
+
+  3) Campo "Choose a tag": escribir el tag IGUAL al numero,
+     por ejemplo  v0.1.2
+     -> aparece el menu azul "Create new tag: v0.1.2 on
+        publish" -> elegirlo (GitHub crea el tag al publicar).
+
+  4) "Release title": poner el mismo numero, ej: 0.1.2.
+
+  5) "Set as the latest release": dejar "Latest" marcado
+     (NO usar "Pre-release"; eso es para betas).
+
+  6) Recuadro "Attach binaries by dropping them here":
+     arrastrar el archivo
+       Family Launcher Setup X.Y.Z.exe
+     desde la carpeta dist. Esperar a que suba 100%.
+     (NO publicar antes de que termine la subida)
+
+  7) Boton verde "Publish release".
+
+-------------------------------------------------------------
+ 5) PASO 4: los jugadores se actualizan solos
+-------------------------------------------------------------
+Cuando el jugador abre el launcher:
+  - si su version es mas vieja -> banner dorado
+      "Nueva version vX.Y.Z disponible"
+      "Estas en vA -> vB"
+      con los botones "Actualizar ahora" / "Mas tarde".
+  - "Actualizar ahora" -> descarga con barra de progreso,
+      instala y reinicia. Cero accion manual.
+
+El jugador NO tiene que volver a descargar nada de vos:
+una vez que publicas la release, el launcher se encarga.
+
+-------------------------------------------------------------
+ 6) COMO COMPROBAR QUE QUEDO BIEN
+-------------------------------------------------------------
+  * En la pagina de la release, el .exe tiene que estar
+    listado como archivo adjunto.
+  * En TU launcher (en la version recien publicada), el banner
+    dice "¡Estas al dia!".
+    Si dijera "hay una version nueva", hay un desajuste de
+    versiones (revisar que .exe y tag coincidan).
+  * Probar con un launcher en version vieja: debe salir el
+    banner con el boton de actualizar.
+
+-------------------------------------------------------------
+ 7) SOLUCION DE PROBLEMAS FRECUENTES
+-------------------------------------------------------------
+ * Error "Cannot create symbolic link" (winCodeSign):
+     correr el build en PowerShell COMO ADMINISTRADOR.
+ * Error "ENOTDIR: not a directory" al abrir el launcher:
+     ya corregido en el codigo (los datos ahora van a
+     userData, no al app.asar). Recompilar con el codigo
+     actualizado.
+ * "Please make sure you have the correct access rights":
+     error de SSH de Windows -> usar remote HTTPS:
+       git remote set-url origin https://github.com/LaManditacabra/FamilyNetwork-Launcher.git
+     (el repo es publico: el pull no pide clave; el push
+      abre el login de Git Credential Manager)
+ * El launcher no detecta la release nueva:
+     * el tag es menor o igual a la version instalada.
+     * la release esta marcada como "Pre-release".
+     * se publico sin adjuntar el .exe (sin asset, no hay
+       boton de actualizar).
+
+-------------------------------------------------------------
+ 8) REPO Y REFERENCIAS
+-------------------------------------------------------------
+  Repo:     https://github.com/LaManditacabra/FamilyNetwork-Launcher
+  Version actual: 0.1.2
+  El actualizador NO usa electron-updater ni latest.yml:
+  la logica es custom (src/core/updater + src/main/updater).
+  El repo debe ser PUBLICO (la descarga de updates es sin token).

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   getAccount: () => ipcRenderer.invoke('auth:getAccount'),
 
   config: () => ipcRenderer.invoke('config:get'),
+  getDeviceId: () => ipcRenderer.invoke('config:getDeviceId'),
   setSkin: (id) => ipcRenderer.invoke('config:setSkin', id),
   appVersion: () => ipcRenderer.invoke('app:version'),
 
