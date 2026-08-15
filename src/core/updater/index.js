@@ -12,6 +12,7 @@
 
 const fs = require('fs');
 
+const GITHUB_WEB = 'https://github.com';
 const GITHUB_API = 'https://api.github.com/repos';
 
 // Convierte "v1.2.3", "1.2", "1.2.3-beta.1" en { major, minor, patch, pre }.
@@ -62,6 +63,11 @@ function selectAsset(release, platform) {
 // Consulta la última release del repo y decide si hay actualización.
 // currentVersion: versión del launcher instalado (p. ej. "0.1.0").
 // Devuelve { updateAvailable: false, error? } o { updateAvailable: true, ... }.
+//
+// Usa la VÍA WEB (github.com, sin token): la API de GitHub limita a 60
+// peticiones/hora por IP y con varios launchers se agota. /releases/latest
+// responde una redirección 302 al tag (no cuenta para el rate-limit) y
+// /releases/expanded_assets/<tag> devuelve el HTML con los archivos adjuntos.
 async function checkForUpdate({ repo, currentVersion, channel = 'latest', fetchFn = null, platform = null }) {
   if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) {
     return { updateAvailable: false, error: 'repo de actualizaciones no configurado' };
@@ -69,42 +75,51 @@ async function checkForUpdate({ repo, currentVersion, channel = 'latest', fetchF
   const doFetch = fetchFn || globalThis.fetch;
   if (!doFetch) return { updateAvailable: false, error: 'fetch no disponible' };
 
-  const res = await doFetch(`${GITHUB_API}/${repo}/releases/${channel}`, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'family-launcher' },
+  // 1) Resolver el tag de la última release sin pasar por la API.
+  const latestRes = await doFetch(`${GITHUB_WEB}/${repo}/releases/latest`, {
+    headers: { 'User-Agent': 'family-launcher' },
+    redirect: 'manual',
     signal: AbortSignal.timeout(12000)
   });
-  if (res.status === 404) return { updateAvailable: false };
-
-  // Rate-limit de la API sin token (60 req/h por IP). No es un error fatal:
-  // se avisa para reintentar en X-RateLimit-Reset en vez de tragarse el fallo.
-  if (res.status === 403 || res.status === 429) {
-    const remaining = Number(res.headers && res.headers.get('x-ratelimit-remaining'));
-    const reset = Number(res.headers && res.headers.get('x-ratelimit-reset'));
-    if (remaining === 0 && reset) {
-      return {
-        updateAvailable: false,
-        rateLimited: true,
-        retryAt: reset * 1000,
-        retryInMs: Math.max(0, reset * 1000 - Date.now())
-      };
-    }
+  if (latestRes.status === 404) return { updateAvailable: false };
+  if (!latestRes.ok && latestRes.status !== 302 && latestRes.status !== 301) {
+    throw new Error('GitHub devolvió HTTP ' + latestRes.status);
   }
 
-  if (!res.ok) throw new Error('GitHub devolvió HTTP ' + res.status);
-
-  const release = await res.json();
-  const tag = String(release.tag_name || '').replace(/^v/i, '');
+  const location = latestRes.headers && latestRes.headers.get('location');
+  const tagMatch = String(location || '').match(/\/releases\/tag\/([^/?#]+)/);
+  if (!tagMatch) return { updateAvailable: false, error: 'no se pudo resolver la última release' };
+  const tagName = tagMatch[1];
+  const tag = tagName.replace(/^v/i, '');
   if (!tag) return { updateAvailable: false, error: 'release sin tag de versión' };
+
+  // 2) Listar los assets de esa release (página web, sin API).
+  const assetsPage = await doFetch(`${GITHUB_WEB}/${repo}/releases/expanded_assets/${tagName}`, {
+    headers: { 'User-Agent': 'family-launcher' },
+    signal: AbortSignal.timeout(12000)
+  });
+  const html = assetsPage.ok ? await assetsPage.text() : '';
+  const assets = [];
+  const seen = new Set();
+  const assetRe = /href="([^"]*\/releases\/download\/[^"]+)"/g;
+  let am;
+  while ((am = assetRe.exec(html)) !== null) {
+    const url = am[1];
+    const name = decodeURIComponent(url.split('/').pop() || '');
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    assets.push({ name, browser_download_url: `${GITHUB_WEB}${url}`, size: 0 });
+  }
 
   const updateAvailable = compareVersions(tag, currentVersion) > 0;
   return {
     updateAvailable,
     version: tag,
-    tag: release.tag_name,
-    name: release.name || release.tag_name,
-    notes: release.body || '',
-    url: release.html_url,
-    asset: updateAvailable ? selectAsset(release, platform || process.platform) : null
+    tag: tagName,
+    name: tagName,
+    notes: '',
+    url: `${GITHUB_WEB}/${repo}/releases/tag/${tagName}`,
+    asset: updateAvailable ? selectAsset({ assets }, platform || process.platform) : null
   };
 }
 
