@@ -104,6 +104,18 @@ async function findJava() {
   return null;
 }
 
+// Verifica que un java.exe/jar sea un binario que realmente ejecuta.
+// Devuelve la versión major (número) si responde a `java -version`; 0 si no.
+async function verifyJavaBinary(javaBin) {
+  try {
+    const { stderr } = await run(`"${javaBin}" -version`);
+    const major = parseMajor((stderr || '') + '');
+    return major || 0;
+  } catch {
+    return 0;
+  }
+}
+
 // Extrae un archivo de runtime según su formato real (no confiamos en la
 // extensión): Adoptium sirve .zip en Windows y .tar.gz en Linux/macOS.
 // Devuelve true si logró extraer.
@@ -158,6 +170,12 @@ async function downloadJava(major, gameDir, onProgress = null) {
         ? findJavaBinary(extractDir, 'java.exe')
         : findJavaBinary(extractDir, 'java');
       if (!javaBin) throw new Error('No se encontró java dentro del JRE extraído');
+      // Verifica que el binario realmente ejecute (redes corruptas entregan
+      // archivos rotos). Si no responde a `java -version`, se limpia y reintenta.
+      const major = await verifyJavaBinary(javaBin);
+      if (!major) {
+        throw new Error('El JRE descargado está corrupto (java -version no responde)');
+      }
       return javaBin;
     } catch (err) {
       if (attempt < MAX_TRIES) {
@@ -208,5 +226,6 @@ module.exports = {
   requiredMajorForVersion,
   findJava,
   downloadJava,
-  ensureJava
+  ensureJava,
+  verifyJavaBinary
 };

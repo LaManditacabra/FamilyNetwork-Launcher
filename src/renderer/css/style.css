@@ -203,6 +203,32 @@ body {
   box-shadow: 0 0 12px rgba(74, 214, 196, 0.25);
 }
 .update-banner[data-state="current"] .update-actions { display: none; }
+.update-banner[data-state="error"] {
+  background: linear-gradient(135deg, rgba(224, 88, 107, 0.10), rgba(224, 88, 107, 0.04));
+  border-color: rgba(224, 88, 107, 0.4);
+}
+.update-banner[data-state="error"] .update-info strong {
+  color: #e88a9b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.update-banner[data-state="error"] .update-info strong::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(224, 88, 107, 0.16);
+  border: 1px solid rgba(224, 88, 107, 0.5);
+  color: #e88a9b;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+.update-banner[data-state="error"] .update-actions { display: none; }
 .update-info {
   display: flex;
   flex-direction: column;

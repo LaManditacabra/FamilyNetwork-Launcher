@@ -74,6 +74,22 @@ async function checkForUpdate({ repo, currentVersion, channel = 'latest', fetchF
     signal: AbortSignal.timeout(12000)
   });
   if (res.status === 404) return { updateAvailable: false };
+
+  // Rate-limit de la API sin token (60 req/h por IP). No es un error fatal:
+  // se avisa para reintentar en X-RateLimit-Reset en vez de tragarse el fallo.
+  if (res.status === 403 || res.status === 429) {
+    const remaining = Number(res.headers && res.headers.get('x-ratelimit-remaining'));
+    const reset = Number(res.headers && res.headers.get('x-ratelimit-reset'));
+    if (remaining === 0 && reset) {
+      return {
+        updateAvailable: false,
+        rateLimited: true,
+        retryAt: reset * 1000,
+        retryInMs: Math.max(0, reset * 1000 - Date.now())
+      };
+    }
+  }
+
   if (!res.ok) throw new Error('GitHub devolvió HTTP ' + res.status);
 
   const release = await res.json();

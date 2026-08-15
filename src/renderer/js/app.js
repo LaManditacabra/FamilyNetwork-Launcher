@@ -1256,6 +1256,18 @@ btnLatest.addEventListener('click', () => {
     progressText.textContent = `${p.phase}: ${pct}%`;
   });
 
+  // Si el proceso de Minecraft muere apenas se lanza (ventana no llega a abrirse),
+  // el problema está en el JVM/Java y esto lo muestra en la UI. El log completo
+  // queda en <gameDir>/launch.log para el diagnóstico.
+  window.api.onLaunchError((msg) => {
+    setStatus('No se pudo lanzar Minecraft (spawn): ' + msg);
+    progress.hidden = true;
+  });
+  window.api.onLaunchExited(({ code, signal, log }) => {
+    progress.hidden = true;
+    setStatus(`Minecraft cerró enseguida (código ${code}${signal ? ', señal ' + signal : ''}). Mirá ${log}`);
+  });
+
   // ---- Mods (ventana dedicada) ----
   document.getElementById('btn-mods').addEventListener('click', () => {
     window.api.win.openMods();
@@ -1345,30 +1357,61 @@ btnLatest.addEventListener('click', () => {
       return;
     }
 
-    // Sin update listo: banner informativo con la versión actual. Si el check
-    // falló por red (transitorio) se oculta; "sin repo configurado" es un
-    // estado informativo que igual conviene mostrar junto a la versión.
+    // Sin update listo: banner informativo con la versión actual. Un error de
+    // red/rate-limit es transitorio: se muestra que no se pudo verificar (en
+    // vez de ocultarse) y el re-check automático lo reintenta solo.
     const err = result.error || '';
-    if (err && !/no configurado|sin repo/i.test(err)) {
-      updateBanner.hidden = true;
+    const errMsg = result.rateLimited
+      ? 'GitHub está limitando las peticiones; se reintentará solo en unos minutos'
+      : (err && /no configurado|sin repo/i.test(err) ? '' : err);
+    if (!errMsg) {
+      updateBanner.dataset.state = 'current';
+      updateTitle.textContent = '¡Estás al día!';
+      updateSub.textContent = 'Family Launcher v' + currentAppVersion +
+        ' — si publicamos una versión nueva, te avisamos acá';
+      updateProgress.hidden = true;
+      showButtons(false);
+      updateBanner.hidden = false;
       return;
     }
-    updateBanner.dataset.state = 'current';
-    updateTitle.textContent = '¡Estás al día!';
-    updateSub.textContent = 'Family Launcher v' + currentAppVersion +
-      ' — si publicamos una versión nueva, te avisamos acá';
+    updateBanner.dataset.state = 'error';
+    updateTitle.textContent = 'No se pudo verificar actualizaciones';
+    updateSub.textContent = errMsg + ' — se reintenta automáticamente.';
     updateProgress.hidden = true;
     showButtons(false);
     updateBanner.hidden = false;
   }
 
-  async function checkForUpdates() {
+  // Re-check periódico (cada 10 min) y al volver a enfocar la ventana, para
+  // detectar releases nuevas aunque la app lleve rato abierta. Respeta el
+  // rate-limit: si GitHub lo marcó, espera a X-RateLimit-Reset antes de llamar.
+  let updateTimer = null;
+  let updateRetryTimer = null;
+  function scheduleUpdateCheck(delayMs) {
+    if (updateTimer) { clearTimeout(updateTimer); updateTimer = null; }
+    updateTimer = setTimeout(runUpdateCheck, delayMs);
+  }
+  async function runUpdateCheck() {
+    updateTimer = null;
     try {
       const result = await window.api.updater.check();
       showUpdateBanner(result);
+      if (result && result.rateLimited && result.retryInMs) {
+        // Espera al reset de GitHub antes del próximo intento.
+        if (updateRetryTimer) { clearTimeout(updateRetryTimer); updateRetryTimer = null; }
+        updateRetryTimer = setTimeout(runUpdateCheck, Math.min(result.retryInMs + 5000, 3600000));
+        return;
+      }
+      scheduleUpdateCheck(600000); // 10 min
     } catch (e) {
       console.warn('[updater]', e.message);
+      scheduleUpdateCheck(120000); // 2 min si el IPC falló
     }
+  }
+
+  async function checkForUpdates() {
+    await loadAppVersion();
+    scheduleUpdateCheck(1500); // primer check con margen para que cargue la UI
   }
 
   document.getElementById('btn-update-later').addEventListener('click', async () => {
@@ -1490,5 +1533,11 @@ btnLatest.addEventListener('click', () => {
     refreshBedrockStatus();
     await loadAppVersion();
     checkForUpdates();
+    // Re-check al volver a la ventana (además del periódico), para detectar
+    // releases nuevas sin esperar el próximo ciclo.
+    window.addEventListener('focus', () => {
+      if (updateRetryTimer) return; // si está esperando rate-limit, no interrumpir
+      scheduleUpdateCheck(3000);
+    });
   })();
 });

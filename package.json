@@ -1,6 +1,6 @@
 {
   "name": "family-launcher",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "description": "Launcher de Minecraft de escritorio multiplataforma",
   "main": "src/main/index.js",
   "author": "Family Launcher Team",

@@ -41,7 +41,7 @@ async function check(cfg) {
     }
     return result;
   } catch (e) {
-    return { updateAvailable: false, error: e.message };
+    return { updateAvailable: false, error: e.message, transient: true };
   }
 }
 
@@ -62,8 +62,13 @@ async function apply(installerPath) {
 
   const p = process.platform;
   if (p === 'win32') {
-    // NSIS: instalación silenciosa y luego salimos; el instalador se encarga.
-    spawn(installerPath, ['/S'], { detached: true, stdio: 'ignore' }).unref();
+    // NSIS: instalación silenciosa y relanzamos la app apenas termina. El
+    // instalador corre en un cmd desacoplado que espera (/wait) y después
+    // vuelve a abrir el launcher (process.execPath = ruta del exe actual,
+    // que es donde el instalador deja la versión nueva).
+    const relaunchCmd =
+      'start "" /wait "' + installerPath + '" /S & start "" "' + process.execPath + '"';
+    spawn('cmd.exe', ['/c', relaunchCmd], { detached: true, stdio: 'ignore' }).unref();
     app.quit();
     return { status: 'installing' };
   }

@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('api', {
   serverStatusBedrock: () => ipcRenderer.invoke('server:statusBedrock'),
   launch: (payload) => ipcRenderer.invoke('minecraft:launch', payload),
   onProgress: (cb) => ipcRenderer.on('minecraft:progress', (_e, p) => cb(p)),
+  onLaunchError: (cb) => ipcRenderer.on('minecraft:launch-error', (_e, msg) => cb(msg)),
+  onLaunchExited: (cb) => ipcRenderer.on('minecraft:launch-exited', (_e, info) => cb(info)),
 
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

@@ -79,3 +79,21 @@ test('checkForUpdate: 404 (sin releases) => sin update y sin error', async () =>
   assert.strictEqual(r.updateAvailable, false);
   assert.strictEqual(r.error, undefined);
 });
+
+test('checkForUpdate: rate-limit (403 con reset) => rateLimited con retryAt', async () => {
+  const reset = Math.floor(Date.now() / 1000) + 600;
+  const fetchFn = async () => ({
+    ok: false,
+    status: 403,
+    headers: new Map([
+      ['x-ratelimit-remaining', '0'],
+      ['x-ratelimit-reset', String(reset)]
+    ]),
+    json: async () => ({})
+  });
+  const r = await checkForUpdate({ repo: 'acme/launcher', currentVersion: '0.1.0', fetchFn });
+  assert.strictEqual(r.updateAvailable, false);
+  assert.strictEqual(r.rateLimited, true);
+  assert.strictEqual(r.retryAt, reset * 1000);
+  assert.ok(r.retryInMs > 0 && r.retryInMs <= 600000);
+});

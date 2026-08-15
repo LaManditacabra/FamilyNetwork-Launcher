@@ -147,7 +147,7 @@ function registerIpcHandlers(ipcMain) {
     // Fallback directo por TCP: si mcsrvstat no responde (p. ej. resoluciones
     // solo-IPv6 que a veces fallan), probamos conexión real al puerto de juego.
     async function probeTcpPort() {
-      const portHint = 52270; // SRV real del túnel (ver docker logs)
+      const portHint = 52270; // puerto SRV del túnel playit (DNS SRV _minecraft._tcp)
       const addresses = await dns.lookup(ip, { all: true }).catch(() => []);
       const candidates = [
         ...addresses.map((a) => ({ host: a.address, port: portHint })),
@@ -569,9 +569,27 @@ function registerIpcHandlers(ipcMain) {
     }
 
     const child = spawn(cmd.command, cmd.args, { cwd: gameDir, windowsHide: false });
-    child.stdout.on('data', (d) => console.log('[MC]', d.toString()));
-    child.stderr.on('data', (d) => console.error('[MC-err]', d.toString()));
-    child.on('exit', (code) => console.log('[MC] proceso terminó con código', code));
+    const logPath = path.join(gameDir, 'launch.log');
+    const sink = (tag) => (d) => {
+      const line = d.toString();
+      try { fs.appendFileSync(logPath, `[${tag}] ${line}`); } catch { /* best effort */ }
+      if (tag === 'err') console.error('[MC-err]', line);
+      else console.log('[MC]', line);
+    };
+    child.stdout.on('data', sink('out'));
+    child.stderr.on('data', sink('err'));
+    child.on('error', (e) => {
+      console.error('[MC] spawn error:', e.message);
+      try { fs.appendFileSync(logPath, `[spawn-error] ${e.message}\n`); } catch { /* best effort */ }
+      if (event && event.sender) event.sender.send('minecraft:launch-error', e.message);
+    });
+    child.on('exit', (code, signal) => {
+      console.log('[MC] proceso terminó con código', code, 'señal', signal);
+      try { fs.appendFileSync(logPath, `[exit] code=${code} signal=${signal}\n`); } catch { /* best effort */ }
+      if (event && event.sender && code !== 0) {
+        event.sender.send('minecraft:launch-exited', { code, signal, log: logPath });
+      }
+    });
 
     return { pid: child.pid };
   });
