@@ -119,6 +119,16 @@ function buildLaunchCommand({ account, profile, javaPath, gameDir, libClassPath,
     ];
   }
 
+  // Java 24+ agrega flags que las JVM viejas no reconocen (p. ej.
+  // --sun-misc-unsafe-memory-access=allow, que solo existe en 24). Si el
+  // runtime es menor a 24 se filtran para no romper el arranque.
+  const javaMajor = profile.javaMajor || 0;
+  jvmArgs = jvmArgs.filter((a) => {
+    if (javaMajor >= 24) return true;
+    if (a.startsWith('--sun-misc-unsafe-memory-access=')) return false;
+    return true;
+  });
+
   // Game args.
   let gameArgs;
   if (versionDetails.arguments && versionDetails.arguments.game) {

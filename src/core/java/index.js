@@ -38,18 +38,21 @@ async function getJavaVersion(javaPath) {
 }
 
 // Major mínimo requerido según la versión de Minecraft.
-// 1.20.5+ requiere Java 21; 1.17 - 1.20.4 usan Java 17; versiones previas usan Java 8.
+// 1.20.5+ requiere Java 21, y las versiones 1.20.4+ usan el flag
+// --sun-misc-unsafe-memory-access=allow (solo existe en Java 24+); como el
+// launcher no filtra flags por ahora, se baja 24 directo para esas versiones.
+// 1.17 - 1.20.4 usan Java 17; versiones previas usan Java 8.
 function requiredMajorForVersion(minecraftVersionId) {
   const m = String(minecraftVersionId).match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
-  if (!m) return 21; // versiones modernas (tipo "26.2") -> 21+
+  if (!m) return 24; // versiones modernas (tipo "26.2") -> 24+
   const major = parseInt(m[1], 10);
   const minor = parseInt(m[2], 10);
   const patch = m[3] ? parseFloat(m[3]) : 0;
-  if (major === 1 && minor === 20 && patch >= 5) return 21;
-  if (major === 1 && minor >= 21) return 21;
+  if (major === 1 && minor === 20 && patch >= 5) return 24;
+  if (major === 1 && minor >= 21) return 24;
   if (major === 1 && minor >= 17) return 17;
   if (major === 1) return 8; // 1.0 - 1.16 -> Java 8
-  return 21; // releases modernas sin prefijo 1.
+  return 24; // releases modernas sin prefijo 1.
 }
 
 // Busca Java en el PATH y en carpetas conocidas.

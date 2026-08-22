@@ -467,6 +467,9 @@ function registerIpcHandlers(ipcMain) {
     const javaPath = await java.ensureJava(versionId, gameDir, (p) => {
       if (event && event.sender) event.sender.send('minecraft:progress', p);
     });
+    // Major de la JVM que se va a usar: sirve para filtrar flags que solo
+    // existen en Java 24+ (p. ej. --sun-misc-unsafe-memory-access=allow).
+    const javaMajor = await java.getJavaVersion(javaPath);
 
     const { classPath, details } = await mc.downloadVersion(versionId, gameDir, (p) => {
       if (event && event.sender) event.sender.send('minecraft:progress', p);
@@ -500,7 +503,7 @@ function registerIpcHandlers(ipcMain) {
 
     const cmd = mc.buildLaunchCommand({
       account,
-      profile: { versionId, memory: memory || cfg.memory, versionType: details.type },
+      profile: { versionId, memory: memory || cfg.memory, versionType: details.type, javaMajor },
       javaPath,
       gameDir,
       libClassPath: classPath,

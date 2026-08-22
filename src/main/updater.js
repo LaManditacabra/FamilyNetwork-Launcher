@@ -67,8 +67,11 @@ async function apply(installerPath) {
     // vuelve a abrir el launcher (process.execPath = ruta del exe actual,
     // que es donde el instalador deja la versión nueva).
     const relaunchCmd =
-      'start "" /wait "' + installerPath + '" /S & start "" "' + process.execPath + '"';
-    spawn('cmd.exe', ['/c', relaunchCmd], { detached: true, stdio: 'ignore' }).unref();
+      'start "" /wait "' + installerPath + '" /S && start "" "' + process.execPath + '"';
+    // Con shell:true Node invoca `cmd.exe /c <comando>` escapando las comillas
+    // correctamente (spawn directo con args rompía el `start` -> "Windows no
+    // encuentra el archivo '\'"). detached + unref: vive aunque la app muera.
+    spawn(relaunchCmd, { shell: true, detached: true, stdio: 'ignore' }).unref();
     app.quit();
     return { status: 'installing' };
   }
